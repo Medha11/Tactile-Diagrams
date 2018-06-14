@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from skimage import measure
 from skimage.filters import threshold_otsu
 from stl import mesh
+from collections import defaultdict
 
 IMAGE_PATH = 'E:/Internships/IIITB2018/src/non_blender_trials/images/photosynthesis.PNG'
 OUTPUT_PATH = 'E:/Internships/IIITB2018/src/non_blender_trials/stl_files/'
@@ -47,7 +48,7 @@ def get_gray_value_from_color(pixel):
     return gray_value
 
 
-def get_hsv_from_bgr(bgr_image):
+def get_hsv_from_bgr_image(bgr_image):
     rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
     rgb_image = rgb_image.astype('float32')
     rgb_image = rgb_image/255
@@ -55,19 +56,62 @@ def get_hsv_from_bgr(bgr_image):
     hsv_image = matplotlib.colors.rgb_to_hsv(rgb_image)
     hue_values = hsv_image[:, :, 0]
     saturation_values = hsv_image[:, :, 1]
-    hsv_image[:,:,0] = hue_values*360
-    hsv_image[:,:,1] = saturation_values*255
+    brightness_values = hsv_image[:, :, 2]
+    hsv_image[:, :, 0] = int(hue_values*360)
+    hsv_image[:, :, 1] = int(saturation_values*100)
+    hsv_image[:, :, 2] = int(brightness_values*100)
     return hsv_image
+
+
+def get_hsv_from_bgr_pixel(pixel):
+    pixel_arr = [pixel[2], pixel[1], pixel[0]]
+    rgb = tuple(pixel_arr)
+    rgb_normalized = map(lambda x: x/255.0, rgb)
+    hsv_pixel_val = matplotlib.colors.rgb_to_hsv(rgb_normalized)
+    hue = int(hsv_pixel_val[0]*360)
+    sat = int(hsv_pixel_val[1]*100)
+    brightness = int(hsv_pixel_val[2]*100)
+    hsv = tuple([hue, sat, brightness])
+    return hsv
+
+
+def deduplicate_entries(colors_list, top_colors_limit):
+    distinct_hues = []
+    top_colors = []
+    for color in colors_list:
+        if color[0] not in distinct_hues:
+            top_colors.append(color)
+            distinct_hues.append(color[0])
+    return top_colors[0:top_colors_limit]
+
+
+def get_top_colors_hsv(image, no_of_colors):
+    color_freq_map = defaultdict(int)
+    (rows, cols, levels) = image.shape
+    for i in range(0, rows):
+        for j in range(0, cols):
+            pixel_color = tuple(image[i, j, :].astype('int'))
+            color_freq_map[pixel_color] += 1
+    sorted_colors = sorted(color_freq_map, key=color_freq_map.get, reverse=True)
+    top_colors = sorted_colors[0:100]
+    top_colors_hsv = []
+    for color in top_colors:
+        top_colors_hsv.append(get_hsv_from_bgr_pixel(color))
+    top_colors_hsv = deduplicate_entries(top_colors_hsv, no_of_colors)
+    return top_colors_hsv
 
 
 if __name__ == "__main__":
     image = cv2.imread(IMAGE_PATH)
-    hsv_image = get_hsv_from_bgr(image)
+    distinct_colors = get_top_colors_hsv(image, 10)
+    print(distinct_colors)
+
+    hsv_image = get_hsv_from_bgr_image(image)
     gray_image = convert_from_colored_to_gray(hsv_image)
 
     gray_image = cv2.medianBlur(gray_image, 5)
-    cv2.imshow('image', gray_image)
-    cv2.waitKey(0)
+#    cv2.imshow('image', gray_image)
+#    cv2.waitKey(0)
 
     # Perform 'closing' morphological operation on the image
     kernel = np.ones((1, 1), np.uint8)
@@ -109,7 +153,7 @@ if __name__ == "__main__":
         for j in range(0, rows - 2):
             for k in range(0, cols - 2):
                 pixel_value = gray_image[j][k]
-                if (pixel_value > level_threshold):
+                if pixel_value > level_threshold:
                     voxel[j + 1][k + 1][level + 2] = pixel_value
 
     '''
