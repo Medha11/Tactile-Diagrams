@@ -1,5 +1,4 @@
 import os
-
 import cv2
 import matplotlib
 import matplotlib.pyplot as plt
@@ -75,17 +74,33 @@ def get_hsv_from_bgr_pixel(pixel):
     return hsv
 
 
-def deduplicate_entries(colors_list, top_colors_limit):
-    distinct_hues = []
-    top_colors = []
-    for color in colors_list:
-        if color[0] not in distinct_hues:
-            top_colors.append(color)
-            distinct_hues.append(color[0])
-    return top_colors[0:top_colors_limit]
+def get_bgr_from_hsv_pixel(pixel):
+    hue = pixel[0]/360.0
+    sat = pixel[1]/100.0
+    brightness = pixel[2]/100.0
+    rgb_pixel_normalized = matplotlib.colors.hsv_to_rgb([hue, sat, brightness])
+    rgb_pixel = np.multiply(rgb_pixel_normalized, 255).astype('int')
+    bgr_pixel = [rgb_pixel[2], rgb_pixel[1], rgb_pixel[0]]
+    return tuple(bgr_pixel)
+
+
+def deduplicate_entries(colors_map, top_colors_limit):
+    distinct_hues = {}
+    top_colors = {}
+    for color in colors_map:
+        hue = color[0]
+        if hue not in distinct_hues:
+            top_colors[color] = colors_map[color]
+            distinct_hues[hue] = color
+        else:
+            matching_color = distinct_hues[hue]
+            top_colors[matching_color] += colors_map[color]
+    top_colors_sorted = sorted(top_colors, key=top_colors.get, reverse=True)
+    return top_colors_sorted[0:top_colors_limit]
 
 
 def get_top_colors_hsv(image, no_of_colors):
+    # map storing the frequency of each pixel color (in bgr) present in the image
     color_freq_map = defaultdict(int)
     (rows, cols, levels) = image.shape
     for i in range(0, rows):
@@ -94,10 +109,14 @@ def get_top_colors_hsv(image, no_of_colors):
             color_freq_map[pixel_color] += 1
     sorted_colors = sorted(color_freq_map, key=color_freq_map.get, reverse=True)
     top_colors = sorted_colors[0:100]
-    top_colors_hsv = []
+    top_colors_map = {}
     for color in top_colors:
-        top_colors_hsv.append(get_hsv_from_bgr_pixel(color))
-    top_colors_hsv = deduplicate_entries(top_colors_hsv, no_of_colors)
+        hsv_color = get_hsv_from_bgr_pixel(color)
+        if hsv_color in top_colors_map:
+            top_colors_map[hsv_color] += color_freq_map[color]
+        else:
+            top_colors_map[hsv_color] = color_freq_map[color]
+    top_colors_hsv = deduplicate_entries(top_colors_map, no_of_colors)
     return top_colors_hsv
 
 
