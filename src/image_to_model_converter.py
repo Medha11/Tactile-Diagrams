@@ -56,9 +56,9 @@ def get_hsv_from_bgr_image(bgr_image):
     hue_values = hsv_image[:, :, 0]
     saturation_values = hsv_image[:, :, 1]
     brightness_values = hsv_image[:, :, 2]
-    hsv_image[:, :, 0] = int(hue_values*360)
-    hsv_image[:, :, 1] = int(saturation_values*100)
-    hsv_image[:, :, 2] = int(brightness_values*100)
+    hsv_image[:, :, 0] = (hue_values*360).astype('int')
+    hsv_image[:, :, 1] = (saturation_values*100).astype('int')
+    hsv_image[:, :, 2] = (brightness_values*100).astype('int')
     return hsv_image
 
 
@@ -206,3 +206,22 @@ if __name__ == "__main__":
     filename = os.path.splitext(os.path.basename(IMAGE_PATH))[0]
     mymesh.save(OUTPUT_PATH + filename + '.stl')
 
+'''
+In [47]: get_top_colors_hsv(image, 15)
+Out[47]:
+[(0, 0, 100), : white
+ (40, 99, 53), : brown
+ (54, 97, 99), : yellow
+ (83, 99, 60), : light green
+ (252, 22, 74), : purple
+ (66, 99, 49), : root green
+ (60, 2, 99), : white
+ (67, 99, 50), : root green
+ (13, 75, 79), : red
+ (133, 35, 50), : stem green
+ (225, 92, 76), : blue
+ (192, 87, 96), : sky blue
+ (45, 96, 43), : dark brown
+ (53, 88, 36),
+ (43, 96, 47)]
+ '''
