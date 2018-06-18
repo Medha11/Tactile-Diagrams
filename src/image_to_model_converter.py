@@ -9,41 +9,38 @@ from skimage.filters import threshold_otsu
 from stl import mesh
 from collections import defaultdict
 
-IMAGE_PATH = 'E:/Internships/IIITB2018/Tactile-Diagrams/test-images/photosynthesis.png'
-OUTPUT_PATH = 'E:/Internships/IIITB2018/src/non_blender_trials/stl_files/'
+IMAGE_PATH = '../test-images/photosynthesis.png'
+OUTPUT_PATH = '../stl-files/'
 SCALING_FACTOR = 0.9
 
-hue_map = {"purple": 260, "blue": 230, "red": 10, "yellow": 45, "light_green": 75, "dark_green": 130, "light_blue": 190}
-gray_intensity = {"red": 0.1, "yellow": 0.3, "light_green": 0.5, "dark_green": 0.6, "light_blue": 0.7, "blue": 0.8,
-                  "purple": 0.9}
+
+height_map = {(0, 0, 100):0, (43, 96, 47):3, (54, 97, 99):4, (83, 99, 60):5, (67, 99, 50):6, (252, 22, 74):7,
+              (13, 75, 79):7, (133, 35, 50):7, (225, 92, 76):8, (60, 99, 46):9, (192, 87, 96):10}
 
 
-def convert_from_colored_to_gray(image):
+def convert_from_colored_to_gray(image, distinct_colors):
     rows = image.shape[0]
     cols = image.shape[1]
     gray_image = np.zeros((rows, cols)).astype('float32')
     for i in range(0, rows):
         for j in range(0, cols):
             pixel_val = tuple(image[i, j, :].astype('int'))
-            gray_image[i][j] = get_gray_value_from_color(pixel_val)
+            gray_image[i][j] = get_gray_value_from_color(pixel_val, distinct_colors)
     return gray_image
 
 
-def get_gray_value_from_color(pixel):
+def get_gray_value_from_color(pixel, distinct_colors):
     pixel_hue = pixel[0]
-    pixel_saturation = pixel[1]
+    pixel_sat = pixel[1]
+    pixel_brightness = pixel[2]
     gray_value = 0
-    for color in hue_map:
-        color_hue = hue_map[color]
-        if color == "red":
-            if pixel_hue in range(color_hue-15, color_hue + 15) and pixel_saturation > 10:
-                gray_value = gray_intensity[color]
-        elif color == "yellow":
-            if pixel_hue in range(color_hue-15, color_hue + 15) and pixel_saturation < 250:
-                gray_value = gray_intensity[color]
-        else:
-            if pixel_hue in range(color_hue-15, color_hue + 15):
-                gray_value = gray_intensity[color]
+    for color in distinct_colors:
+        color_hue = color[0]
+        color_sat = color[1]
+        color_brightness = color[2]
+        if pixel_hue in range(color_hue-5, color_hue + 5) and pixel_sat in range(color_sat - 10, color_sat + 10)\
+                and pixel_brightness in range(color_brightness - 10, color_brightness + 10):
+            gray_value = height_map[color]*0.1
     return gray_value
 
 
@@ -144,9 +141,9 @@ if __name__ == "__main__":
     print(distinct_colors)
 
     hsv_image = get_hsv_from_bgr_image(image)
-    gray_image = convert_from_colored_to_gray(hsv_image)
+    gray_image = convert_from_colored_to_gray(hsv_image, distinct_colors)
 
-    gray_image = cv2.medianBlur(gray_image, 5)
+    gray_image = cv2.medianBlur(gray_image, 3)
 #    cv2.imshow('image', gray_image)
 #    cv2.waitKey(0)
 
@@ -186,7 +183,7 @@ if __name__ == "__main__":
     Based on the pixel values the layers are created to assign different heights to different regions in the image
     '''
     for level in range(1, 10):
-        level_threshold = level * 0.1;
+        level_threshold = level * 0.1
         for j in range(0, rows - 2):
             for k in range(0, cols - 2):
                 pixel_value = gray_image[j][k]
