@@ -9,7 +9,7 @@ from skimage.filters import threshold_otsu
 from stl import mesh
 from collections import defaultdict
 
-IMAGE_PATH = 'E:/Internships/IIITB2018/src/non_blender_trials/images/photosynthesis.PNG'
+IMAGE_PATH = 'E:/Internships/IIITB2018/Tactile-Diagrams/test-images/photosynthesis.png'
 OUTPUT_PATH = 'E:/Internships/IIITB2018/src/non_blender_trials/stl_files/'
 SCALING_FACTOR = 0.9
 
@@ -84,18 +84,36 @@ def get_bgr_from_hsv_pixel(pixel):
     return tuple(bgr_pixel)
 
 
-def deduplicate_entries(colors_map, top_colors_limit):
-    distinct_hues = {}
+def get_matching_color(color_to_be_matched, color_list):
+    hue = color_to_be_matched[0]
+    sat = color_to_be_matched[1]
+    brightness = color_to_be_matched[2]
+    if sat < 10 and brightness > 90:
+        return tuple([0, 0, 100])
+    if sat < 10 and brightness < 10:
+        return tuple([0, 0, 0])
+    for color in color_list:
+        color_hue = color[0]
+        color_sat = color[1]
+        color_brightness = color[2]
+        if hue in range(color_hue - 5, color_hue + 5) and sat in range(color_sat - 10, color_sat + 10)\
+                and brightness in range(color_brightness - 10, color_brightness + 10):
+            return color
+    return None
+
+
+def deduplicate_entries(colors_map, top_colors_limit, total_number_of_pixels):
     top_colors = {}
+    top_colors[(0, 0, 100)] = 0
+    top_colors[(0, 0, 0)] = 0
     for color in colors_map:
-        hue = color[0]
-        if hue not in distinct_hues:
+        matching_color = get_matching_color(color, top_colors.keys())
+        if matching_color is None:
             top_colors[color] = colors_map[color]
-            distinct_hues[hue] = color
         else:
-            matching_color = distinct_hues[hue]
             top_colors[matching_color] += colors_map[color]
-    top_colors_sorted = sorted(top_colors, key=top_colors.get, reverse=True)
+    top_colors_filtered = {k: v for k, v in top_colors.iteritems() if v/float(total_number_of_pixels)*100 > 0.1}
+    top_colors_sorted = sorted(top_colors_filtered, key=top_colors_filtered.get, reverse=True)
     return top_colors_sorted[0:top_colors_limit]
 
 
@@ -116,13 +134,13 @@ def get_top_colors_hsv(image, no_of_colors):
             top_colors_map[hsv_color] += color_freq_map[color]
         else:
             top_colors_map[hsv_color] = color_freq_map[color]
-    top_colors_hsv = deduplicate_entries(top_colors_map, no_of_colors)
+    top_colors_hsv = deduplicate_entries(top_colors_map, no_of_colors, rows*cols)
     return top_colors_hsv
 
 
 if __name__ == "__main__":
     image = cv2.imread(IMAGE_PATH)
-    distinct_colors = get_top_colors_hsv(image, 10)
+    distinct_colors = get_top_colors_hsv(image, 11)
     print(distinct_colors)
 
     hsv_image = get_hsv_from_bgr_image(image)
@@ -207,7 +225,7 @@ if __name__ == "__main__":
     mymesh.save(OUTPUT_PATH + filename + '.stl')
 
 '''
-In [47]: get_top_colors_hsv(image, 15)
+In [47]: get_top_colors_hsv(image, 10)
 Out[47]:
 [(0, 0, 100), : white
  (40, 99, 53), : brown
@@ -215,13 +233,12 @@ Out[47]:
  (83, 99, 60), : light green
  (252, 22, 74), : purple
  (66, 99, 49), : root green
- (60, 2, 99), : white
- (67, 99, 50), : root green
  (13, 75, 79), : red
  (133, 35, 50), : stem green
  (225, 92, 76), : blue
  (192, 87, 96), : sky blue
- (45, 96, 43), : dark brown
- (53, 88, 36),
- (43, 96, 47)]
  '''
+
+'''
+TODO:
+'''
