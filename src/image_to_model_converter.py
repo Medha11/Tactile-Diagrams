@@ -8,14 +8,15 @@ from skimage import measure
 from skimage.filters import threshold_otsu
 from stl import mesh
 from collections import defaultdict
+from Tkinter import *
+import Tkinter, Tkconstants, tkFileDialog
 
-IMAGE_PATH = '../test-images/photosynthesis.png'
+
+IMAGE_PATH = ''
 OUTPUT_PATH = '../stl-files/'
 SCALING_FACTOR = 0.9
 
-
-height_map = {(0, 0, 100):0, (43, 96, 47):3, (54, 97, 99):4, (83, 99, 60):5, (67, 99, 50):6, (252, 22, 74):7,
-              (13, 75, 79):7, (133, 35, 50):7, (225, 92, 76):8, (60, 99, 46):9, (192, 87, 96):10}
+height_map = {}
 
 
 def convert_from_colored_to_gray(image, distinct_colors):
@@ -114,6 +115,65 @@ def deduplicate_entries(colors_map, top_colors_limit, total_number_of_pixels):
     return top_colors_sorted[0:top_colors_limit]
 
 
+def fetch(entries, root):
+    for entry in entries:
+        field = entry[0]
+        text = entry[1].get()
+        if text == '':
+            height_map[field] = 0
+        else:
+            height_map[field] = int(text)
+    root.destroy()
+
+
+def makeform(root, colors):
+    entries = []
+    for color in colors:
+        bgr_color = get_bgr_from_hsv_pixel(color)
+        rgb_color = tuple([bgr_color[2], bgr_color[1], bgr_color[0]])
+        background_color = '#%02x%02x%02x' % rgb_color
+        row = Frame(root)
+        lab = Label(row, width=10, text='', bg=background_color, anchor='w')
+        ent = Entry(row)
+        row.pack(side=TOP, padx=5, pady=5)
+        lab.pack(side=LEFT)
+        ent.pack(side=RIGHT)
+        entries.append((color, ent))
+    return entries
+
+
+def assign_height_to_colors(distinct_colors):
+    root = Tk()
+    root.title("Enter heights")
+    instruction = Label(0, text="Please enter the height you want to assign to each color,\n"
+                                "in the range 0 to 10. (Blank entries will be considered as 0)", padx=10)
+    instruction.pack()
+    ents = makeform(root, distinct_colors)
+    root.bind('<Return>', (lambda event, e=ents: fetch(e, root)))
+    b1 = Button(root, text='Submit', command=(lambda e=ents: fetch(e, root)))
+    b1.pack(side=LEFT, padx=5, pady=5)
+    root.mainloop()
+
+
+def get_image_path():
+    root = Tk()
+    def browsefunc():
+        filename = tkFileDialog.askopenfilename(initialdir="/", title="Select file")
+        pathlabel.config(text=filename)
+        global IMAGE_PATH
+        IMAGE_PATH = filename
+        root.destroy()
+
+    instruction = Label(0, text="Choose the image that has to be converted", padx=10)
+    instruction.pack()
+    browsebutton = Button(root, text="Browse", command=browsefunc)
+    browsebutton.pack()
+
+    pathlabel = Label(root)
+    pathlabel.pack()
+    root.mainloop()
+
+
 def get_top_colors_hsv(image, no_of_colors):
     # map storing the frequency of each pixel color (in bgr) present in the image
     color_freq_map = defaultdict(int)
@@ -136,9 +196,12 @@ def get_top_colors_hsv(image, no_of_colors):
 
 
 if __name__ == "__main__":
+    get_image_path()
     image = cv2.imread(IMAGE_PATH)
+
     distinct_colors = get_top_colors_hsv(image, 11)
-    print(distinct_colors)
+
+    assign_height_to_colors(distinct_colors)
 
     hsv_image = get_hsv_from_bgr_image(image)
     gray_image = convert_from_colored_to_gray(hsv_image, distinct_colors)
